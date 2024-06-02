@@ -35,7 +35,7 @@ jobs:
       id: ecr-login
       uses: aws-actions/amazon-ecr-login@v1
       with:
-        region: ${{ secrets.AWS_REGION }}
+        region: us-east-1
 
     - name: Tag the Docker image
       run: docker tag vidtoascii:latest 991136721531.dkr.ecr.us-east-1.amazonaws.com/vidtoasciiapp:latest
@@ -44,7 +44,7 @@ jobs:
       run: docker push 991136721531.dkr.ecr.us-east-1.amazonaws.com/vidtoasciiapp:latest
 
     - name: Set up Kubernetes
-      uses: actions/setup-kubectl@v1
+      uses: azure/setup-kubectl@v1
       with:
         version: 'latest'
 
@@ -54,10 +54,10 @@ jobs:
     - name: Deploy to EKS using Helm
       run: |
         helm upgrade --install vidtoasciihelm ./vidtoasciihelm \
-          --set image.repository=991136721531.dkr.ecr.us-east-1.amazonaws.com/my-app \
+          --set image.repository=991136721531.dkr.ecr.us-east-1.amazonaws.com/vidtoasciiapp \
           --set image.tag=latest \
           --values ./vidtoasciihelm/values.yaml
         helm upgrade --install vidtoasciihelm-prod ./vidtoasciihelm \
-          --set image.repository=991136721531.dkr.ecr.us-east-1.amazonaws.com/my-app \
+          --set image.repository=991136721531.dkr.ecr.us-east-1.amazonaws.com/vidtoasciiapp \
           --set image.tag=latest \
           --values ./vidtoasciihelm/values-prod.yaml
