@@ -1,4 +1,4 @@
-name: Build, Push to ECR, and Deploy with Helm
+name: Build and Deploy to ECR and EKS
 
 on:
   push:
@@ -6,48 +6,58 @@ on:
       - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+    - name: Install dependencies
+      run: npm install
 
-    - name: Login to Amazon ECR
-      id: login-ecr
+    - name: Build the Docker image
+      run: docker build -t vidtoascii:latest .
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Log in to Amazon ECR
+      id: ecr-login
       uses: aws-actions/amazon-ecr-login@v1
+      with:
+        region: ${{ secrets.AWS_REGION }}
 
-    - name: Extract repository name and image tag
-      id: extract
-      run: |
-        echo "REPOSITORY_URI=${{ secrets.ECR_REPOSITORY_URI }}" >> $GITHUB_ENV
-        echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+    - name: Tag the Docker image
+      run: docker tag vidtoascii:latest 991136721531.dkr.ecr.us-east-1.amazonaws.com/vidtoasciiapp:latest
 
-    - name: Build and push Docker image
-      run: |
-        docker build -t ${{ env.REPOSITORY_URI }}:${{ env.IMAGE_TAG }} .
-        docker push ${{ env.REPOSITORY_URI }}:${{ env.IMAGE_TAG }}
+    - name: Push the Docker image to Amazon ECR
+      run: docker push 991136721531.dkr.ecr.us-east-1.amazonaws.com/vidtoasciiapp:latest
 
-    - name: Configure kubectl
-      run: |
-        aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name vidtoascii-cluster
+    - name: Set up Kubernetes
+      uses: actions/setup-kubectl@v1
+      with:
+        version: 'latest'
 
-    - name: Deploy with Helm (Development)
+    - name: Update kubeconfig
+      run: aws eks update-kubeconfig --name vidtoascii-cluster --region us-east-1
+
+    - name: Deploy to EKS using Helm
       run: |
         helm upgrade --install vidtoasciihelm ./vidtoasciihelm \
-          --set image.repository=${{ env.REPOSITORY_URI }} \
-          --set image.tag=${{ env.IMAGE_TAG }} \
+          --set image.repository=991136721531.dkr.ecr.us-east-1.amazonaws.com/my-app \
+          --set image.tag=latest \
           --values ./vidtoasciihelm/values.yaml
-
-    - name: Deploy with Helm (Production)
-      run: |
         helm upgrade --install vidtoasciihelm-prod ./vidtoasciihelm \
-          --set image.repository=${{ env.REPOSITORY_URI }} \
-          --set image.tag=${{ env.IMAGE_TAG }} \
+          --set image.repository=991136721531.dkr.ecr.us-east-1.amazonaws.com/my-app \
+          --set image.tag=latest \
           --values ./vidtoasciihelm/values-prod.yaml
