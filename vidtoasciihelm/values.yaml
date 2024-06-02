@@ -1,0 +1,28 @@
+replicaCount: 1
+
+image:
+  repository: 991136721531.dkr.ecr.us-east-1.amazonaws.com/vidtoasciiapp
+  tag: "latest"
+  pullPolicy: Always
+
+service:
+  type: LoadBalancer
+  port: 8080
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "250m"
+  limits:
+    memory: "128Mi"
+    cpu: "500m"
+
+env:
+  - name: NODE_ENV
+    value: "development"
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vidtoasciihelm.fullname" . }}
+  labels:
+    {{- include "vidtoasciihelm.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 8080
+      protocol: TCP
+      name: https
+  selector:
+    {{- include "vidtoasciihelm.selectorLabels" . | nindent 4 }}
